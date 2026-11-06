@@ -1,0 +1,9 @@
+# PlatformIO
+.pio/
+.pioenvs/
+.piolibdeps/
+.vscode/
+*.bin.tmp
+
+# Build output (publish the merged binary explicitly if you want Pages flashing)
+# firmware/*.bin
