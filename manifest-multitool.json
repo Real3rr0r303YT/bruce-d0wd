@@ -1,0 +1,14 @@
+{
+  "name": "ESP Multitool",
+  "version": "1.0.0",
+  "funding_url": "https://buymeacoffee.com/3rr0r303YT",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32",
+      "parts": [
+        { "path": "firmware/esp-multitool-full.bin", "offset": 0 }
+      ]
+    }
+  ]
+}
