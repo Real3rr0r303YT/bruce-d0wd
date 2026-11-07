@@ -3,70 +3,40 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Bruce-D0WD &middot; ESP32-D0WD Firmware</title>
-  <meta name="description" content="Open-source hardware bring-up firmware for the ESP32-D0WD with an SSD1306 OLED. Flash it directly from your browser." />
+  <title>ESP Multitool &middot; ESP32-D0WD Firmware</title>
+  <meta name="description" content="Connected multi-tool firmware for the ESP32-D0WD with an SSD1306 OLED: Wi-Fi onboarding by QR, web remote, IR, BLE scan and a 2.4 GHz NRF24 channel scanner. Flash it straight from your browser." />
 
   <!-- ESP Web Tools: in-browser serial flashing -->
   <script type="module" src="https://unpkg.com/esp-web-tools@10.4.0/dist/web/install-button.js?module"></script>
 
   <style>
     :root {
-      --bg: #f6f8fa;
-      --card: #ffffff;
-      --ink: #1f2328;
-      --muted: #656d76;
-      --border: #d0d7de;
-      --accent: #2563eb;
-      --accent-ink: #ffffff;
-      --coffee: #ffdd00;
-      --coffee-ink: #000000;
-      --code-bg: #f0f2f5;
+      --bg: #f6f8fa; --card: #ffffff; --ink: #1f2328; --muted: #656d76;
+      --border: #d0d7de; --accent: #2563eb; --accent-ink: #ffffff;
+      --coffee: #ffdd00; --coffee-ink: #000000; --code-bg: #f0f2f5;
     }
     @media (prefers-color-scheme: dark) {
       :root:not([data-theme="light"]) {
-        --bg: #0d1117;
-        --card: #161b22;
-        --ink: #e6edf3;
-        --muted: #9198a1;
-        --border: #30363d;
-        --accent: #4493f8;
-        --code-bg: #1b222b;
+        --bg: #0d1117; --card: #161b22; --ink: #e6edf3; --muted: #9198a1;
+        --border: #30363d; --accent: #4493f8; --code-bg: #1b222b;
       }
     }
     :root[data-theme="dark"] {
       --bg: #0d1117; --card: #161b22; --ink: #e6edf3; --muted: #9198a1;
       --border: #30363d; --accent: #4493f8; --code-bg: #1b222b;
     }
-
     * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--ink);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      line-height: 1.6;
-    }
+    body { margin: 0; background: var(--bg); color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; }
     .wrap { max-width: 820px; margin: 0 auto; padding: 48px 16px 72px; }
-
     header { text-align: center; margin-bottom: 36px; }
     h1 { font-size: 2.2rem; margin: 0 0 6px; letter-spacing: -0.5px; }
     .tagline { color: var(--muted); font-size: 1.05rem; margin: 0; }
     .badges { margin-top: 14px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
-    .badge {
-      font-size: 0.8rem; color: var(--muted);
-      border: 1px solid var(--border); border-radius: 999px;
-      padding: 3px 12px; background: var(--card);
-    }
-
-    .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 28px;
-      margin: 20px 0;
-    }
+    .badge { font-size: 0.8rem; color: var(--muted); border: 1px solid var(--border);
+      border-radius: 999px; padding: 3px 12px; background: var(--card); }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 28px; margin: 20px 0; }
     .card h2 { margin-top: 0; font-size: 1.25rem; }
-
     .flash { text-align: center; }
     esp-web-install-button {
       --esp-tools-button-color: var(--accent-ink);
@@ -74,109 +44,90 @@
       --esp-tools-button-border-radius: 8px;
     }
     .flash .hint { color: var(--muted); font-size: 0.9rem; margin-top: 14px; }
-
-    .btn {
-      display: inline-flex; align-items: center; gap: 8px;
-      text-decoration: none; font-weight: 600;
-      border-radius: 8px; padding: 11px 20px;
-      border: 1px solid transparent; cursor: pointer;
-    }
+    .btn { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-weight: 600;
+      border-radius: 8px; padding: 11px 20px; border: 1px solid transparent; cursor: pointer; }
     .btn-coffee { background: var(--coffee); color: var(--coffee-ink); }
     .btn-coffee:hover { filter: brightness(0.95); }
     .support { text-align: center; }
-
+    ul.features { margin: 0; padding-left: 20px; }
+    ul.features li { margin: 6px 0; }
     table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
     th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
     th { color: var(--muted); font-weight: 600; }
-    code, pre {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      background: var(--code-bg); border-radius: 6px;
-    }
-    code { padding: 1px 6px; font-size: 0.88em; }
-    pre { padding: 14px; overflow-x: auto; font-size: 0.85rem; }
-
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      background: var(--code-bg); border-radius: 6px; padding: 1px 6px; font-size: 0.88em; }
     .steps { padding-left: 20px; }
     .steps li { margin: 6px 0; }
-
     footer { text-align: center; color: var(--muted); font-size: 0.85rem; margin-top: 40px; }
-    footer a { color: var(--accent); }
-
-    .notice {
-      font-size: 0.86rem; color: var(--muted);
-      border-left: 3px solid var(--border); padding: 4px 0 4px 14px; margin-top: 10px;
-    }
+    .notice { font-size: 0.86rem; color: var(--muted); border-left: 3px solid var(--border); padding: 4px 0 4px 14px; margin-top: 10px; }
   </style>
 </head>
 <body>
   <div class="wrap">
 
     <header>
-      <h1>Bruce-D0WD</h1>
-      <p class="tagline">Open-source hardware firmware for the ESP32-D0WD with an SSD1306 OLED.</p>
+      <h1>ESP Multitool</h1>
+      <p class="tagline">Connected multi-tool firmware for the ESP32-D0WD with an SSD1306 OLED.</p>
       <div class="badges">
         <span class="badge">ESP32-D0WD</span>
         <span class="badge">SSD1306 OLED</span>
-        <span class="badge">GPL&#8209;3.0</span>
+        <span class="badge">Wi-Fi &middot; QR onboarding</span>
+        <span class="badge">Web remote</span>
       </div>
     </header>
 
-    <!-- Browser flashing -->
     <section class="card flash">
       <h2>Flash from your browser</h2>
       <p>Connect your ESP32-D0WD over USB and click below. Flashing uses Web Serial, so you need
          <strong>Google Chrome</strong>, <strong>Microsoft Edge</strong>, or another Chromium-based browser on desktop.</p>
-      <esp-web-install-button manifest="./manifest.json">
+      <esp-web-install-button manifest="./manifest-multitool.json">
         <button slot="activate" class="btn" style="background:var(--accent);color:var(--accent-ink);">
-          Install Bruce-D0WD
+          Install ESP Multitool
         </button>
         <span slot="unsupported">Your browser does not support Web Serial &mdash; try Chrome or Edge on desktop.</span>
         <span slot="not-allowed">Connecting to the device was not allowed.</span>
       </esp-web-install-button>
-      <p class="hint">Hold the <code>BOOT</code> button while connecting if the device is not detected.</p>
+      <p class="hint">If the device is not detected: hold <code>BOOT</code>, tap <code>RST</code>, release <code>BOOT</code>, then click Install.</p>
     </section>
 
-    <!-- Hardware -->
+    <section class="card">
+      <h2>Features</h2>
+      <ul class="features">
+        <li><strong>Wi-Fi onboarding by QR</strong> &mdash; the OLED shows a QR code; scan it with your phone to join the setup AP and enter your home Wi-Fi.</li>
+        <li><strong>Web remote control</strong> &mdash; once online, a built-in web UI lets you control the device, upload files (IR code sets, images, config) and do OTA firmware updates.</li>
+        <li><strong>IR</strong> &mdash; record and replay remotes, send stored IR codes.</li>
+        <li><strong>Bluetooth LE</strong> &mdash; scan nearby BLE devices (name / MAC / RSSI).</li>
+        <li><strong>NRF24 scanner</strong> &mdash; 2.4 GHz channel / spectrum monitor and passive sniffer (receive only).</li>
+        <li><strong>Local control</strong> &mdash; three-button OLED menu (Up / Down / Select).</li>
+      </ul>
+      <p class="notice">Receive / scan / own-device control only &mdash; no jamming, deauth or spam. For education and authorized testing; you are responsible for lawful use.</p>
+    </section>
+
     <section class="card">
       <h2>Hardware pinout</h2>
       <table>
         <thead><tr><th>Peripheral</th><th>Signal</th><th>ESP32 GPIO</th></tr></thead>
         <tbody>
-          <tr><td>OLED (I2C)</td><td>SDA</td><td>21</td></tr>
-          <tr><td>OLED (I2C)</td><td>SCL</td><td>22</td></tr>
-          <tr><td>SPI bus</td><td>SCK</td><td>18</td></tr>
-          <tr><td>SPI bus</td><td>MISO</td><td>19</td></tr>
-          <tr><td>SPI bus</td><td>MOSI</td><td>23</td></tr>
+          <tr><td>OLED (I2C)</td><td>SDA / SCL</td><td>21 / 22 (addr 0x3C)</td></tr>
+          <tr><td>Buttons</td><td>Select / Up / Down</td><td>14 / 32 / 33</td></tr>
           <tr><td>NRF24L01</td><td>CE / CSN</td><td>4 / 5</td></tr>
-          <tr><td>CC1101</td><td>CSN / GDO0 / GDO2</td><td>27 / 2 / 25</td></tr>
-          <tr><td>RC522 RFID</td><td>CS / RST</td><td>15 / 0</td></tr>
+          <tr><td>SPI bus</td><td>SCK / MISO / MOSI</td><td>18 / 19 / 23</td></tr>
           <tr><td>Infrared</td><td>TX / RX</td><td>12 / 13</td></tr>
-          <tr><td>Buttons</td><td>Up / Down / Select</td><td>32 / 33 / 14</td></tr>
         </tbody>
       </table>
-      <p class="notice">All SPI front-ends share one bus; adjust the pin map in
-        <code>src/config.h</code> to match your own wiring.</p>
     </section>
 
-    <!-- Build -->
     <section class="card">
-      <h2>Build from source</h2>
+      <h2>After flashing</h2>
       <ol class="steps">
-        <li>Install <a href="https://platformio.org/">PlatformIO</a>.</li>
-        <li>Clone this repository and run <code>pio run</code>.</li>
-        <li>Flash over USB with <code>pio run -t upload</code>, or generate the
-            browser-installer binary:</li>
+        <li>Press <code>RST</code>. The OLED shows <strong>Wi-Fi Setup</strong> with a QR code.</li>
+        <li>Scan the QR with your phone to join the <code>ESP-MT</code> setup network, then enter your home Wi-Fi.</li>
+        <li>The device reboots and shows a QR with its IP &mdash; scan it to open the web remote.</li>
+        <li>From then on you can update over the air from the web UI (no cable needed).</li>
       </ol>
-      <pre>esptool.py --chip esp32 merge_bin -o firmware/bruce-d0wd-merged.bin \
-  --flash_mode dio --flash_freq 40m --flash_size 4MB \
-  0x1000  .pio/build/esp32-d0wd/bootloader.bin \
-  0x8000  .pio/build/esp32-d0wd/partitions.bin \
-  0xe000  ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin \
-  0x10000 .pio/build/esp32-d0wd/firmware.bin</pre>
-      <p class="notice">Place the resulting <code>bruce-d0wd-merged.bin</code> in a
-        <code>firmware/</code> folder next to this page so the installer can find it.</p>
+      <p class="notice">First flash must be over USB. If flashing drops out, disconnect the NRF24 module and retry (it can cause power dips).</p>
     </section>
 
-    <!-- Support -->
     <section class="card support">
       <h2>Support this project</h2>
       <p>If this firmware is useful to you, a coffee keeps the work going.</p>
