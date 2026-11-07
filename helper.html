@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bootloader Helper &middot; ESP32-D0WD</title>
+  <meta name="description" content="A guided countdown that walks you through putting the ESP32-D0WD into download/bootloader mode, then tells you when you are ready to flash." />
+  <style>
+    :root {
+      --bg:#f6f8fa; --card:#ffffff; --ink:#1f2328; --muted:#656d76;
+      --border:#d0d7de; --accent:#2563eb; --accent-ink:#fff;
+      --ok:#1a7f37; --warn:#9a6700; --ring:#2563eb;
+    }
+    @media (prefers-color-scheme: dark){
+      :root:not([data-theme="light"]){
+        --bg:#0d1117; --card:#161b22; --ink:#e6edf3; --muted:#9198a1;
+        --border:#30363d; --accent:#4493f8; --ok:#3fb950; --warn:#d29922; --ring:#4493f8;
+      }
+    }
+    :root[data-theme="dark"]{
+      --bg:#0d1117; --card:#161b22; --ink:#e6edf3; --muted:#9198a1;
+      --border:#30363d; --accent:#4493f8; --ok:#3fb950; --warn:#d29922; --ring:#4493f8;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--ink);
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.6}
+    .wrap{max-width:640px;margin:0 auto;padding:40px 16px 64px;text-align:center}
+    h1{font-size:1.9rem;margin:0 0 4px;letter-spacing:-.5px}
+    .sub{color:var(--muted);margin:0 0 24px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px 22px;margin:18px 0}
+
+    /* countdown ring */
+    .stage{display:flex;flex-direction:column;align-items:center;gap:14px;min-height:300px;justify-content:center}
+    .ring{position:relative;width:200px;height:200px}
+    .ring svg{transform:rotate(-90deg);width:200px;height:200px}
+    .ring .track{stroke:var(--border);stroke-width:12;fill:none}
+    .ring .prog{stroke:var(--ring);stroke-width:12;fill:none;stroke-linecap:round;
+      transition:stroke-dashoffset .95s linear, stroke .3s}
+    .ring .num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+      font-size:4rem;font-weight:700;font-variant-numeric:tabular-nums}
+    .action{font-size:1.5rem;font-weight:700;min-height:2.2em;display:flex;align-items:center;justify-content:center;gap:10px}
+    .hint{color:var(--muted);font-size:.95rem;min-height:1.4em}
+    .key{display:inline-block;border:1px solid var(--border);border-bottom-width:3px;border-radius:7px;
+      padding:2px 10px;font-weight:700;font-family:ui-monospace,Menlo,Consolas,monospace;background:var(--bg)}
+
+    .btn{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:1.05rem;cursor:pointer;
+      border-radius:10px;padding:13px 26px;border:1px solid transparent;background:var(--accent);color:var(--accent-ink);text-decoration:none}
+    .btn:hover{filter:brightness(1.05)}
+    .btn.ghost{background:transparent;color:var(--accent);border-color:var(--border)}
+    .btn:disabled{opacity:.5;cursor:default}
+    .row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:8px}
+
+    .ready .action{color:var(--ok)}
+    .ready .ring .prog{stroke:var(--ok)}
+    .pulse{animation:pulse 1s ease-in-out infinite}
+    @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+
+    ol.pre{text-align:left;max-width:420px;margin:0 auto;color:var(--muted);font-size:.92rem;padding-left:20px}
+    ol.pre li{margin:5px 0}
+    footer{color:var(--muted);font-size:.85rem;margin-top:26px}
+    a.link{color:var(--accent)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Bootloader Helper</h1>
+    <p class="sub">Puts your ESP32-D0WD into download mode &mdash; just follow the countdown.</p>
+
+    <div class="card" id="card">
+      <div class="stage" id="stage">
+        <!-- intro -->
+        <div id="intro">
+          <ol class="pre">
+            <li>Unplug the <strong>NRF24</strong> module (prevents power dips).</li>
+            <li>Keep your board within reach &mdash; you'll press <span class="key">BOOT</span> and <span class="key">RST</span>.</li>
+            <li>Connect the board by USB.</li>
+          </ol>
+          <div class="row" style="margin-top:22px">
+            <button class="btn" id="startBtn">Start the countdown</button>
+          </div>
+        </div>
+
+        <!-- running -->
+        <div id="run" style="display:none">
+          <div class="ring">
+            <svg viewBox="0 0 200 200">
+              <circle class="track" cx="100" cy="100" r="86"></circle>
+              <circle class="prog" id="prog" cx="100" cy="100" r="86"></circle>
+            </svg>
+            <div class="num" id="num">3</div>
+          </div>
+          <div class="action" id="action">Get ready&hellip;</div>
+          <div class="hint" id="hint">Hold the board so you can reach both buttons.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <button class="btn ghost" id="againBtn" style="display:none">Run again</button>
+      <a class="btn" id="flashBtn" href="./index.html" style="display:none">⚡ Flash now</a>
+    </div>
+
+    <footer>
+      Doesn't connect on the first try? That's normal &mdash; just
+      <a class="link" href="#" id="retry">run the countdown again</a>,
+      and keep <span class="key">BOOT</span> held a little longer.
+      <br>Back to the <a class="link" href="./index.html">installer</a>.
+    </footer>
+  </div>
+
+  <script>
+    const C = 2 * Math.PI * 86;             // ring circumference
+    const prog = document.getElementById('prog');
+    prog.style.strokeDasharray = C;
+    prog.style.strokeDashoffset = 0;
+
+    const el = (id) => document.getElementById(id);
+    const stage = el('stage'), intro = el('intro'), run = el('run');
+    const num = el('num'), action = el('action'), hint = el('hint');
+    const startBtn = el('startBtn'), againBtn = el('againBtn'), flashBtn = el('flashBtn');
+
+    let timer = null;
+
+    function beep(freq=880, dur=0.12){
+      try{
+        const a = new (window.AudioContext||window.webkitAudioContext)();
+        const o = a.createOscillator(), g = a.createGain();
+        o.frequency.value = freq; o.connect(g); g.connect(a.destination);
+        g.gain.setValueAtTime(0.0001, a.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.25, a.currentTime+0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime+dur);
+        o.start(); o.stop(a.currentTime+dur);
+      }catch(e){}
+    }
+    function vibrate(ms){ try{ navigator.vibrate && navigator.vibrate(ms);}catch(e){} }
+
+    // The guided sequence. Each step: seconds, big action text, hint, ring color class.
+    const STEPS = [
+      {s:3, action:'Get ready&hellip;',           hint:'Hold the board so you can reach BOOT and RST.', beep:660},
+      {s:3, action:'HOLD <span class="key">BOOT</span> now 👇', hint:'Press BOOT and keep holding it.', beep:880, ring:'var(--accent)'},
+      {s:2, action:'Tap <span class="key">RST</span> once',     hint:'Keep BOOT held while you tap RST.', beep:988},
+      {s:2, action:'Release <span class="key">BOOT</span>',     hint:'Let go of BOOT now.', beep:1047},
+    ];
+
+    function setRing(frac, color){
+      prog.style.strokeDashoffset = C * (1 - frac);
+      if(color) prog.style.stroke = color;
+    }
+
+    function runStep(i){
+      if(i >= STEPS.length){ return finish(); }
+      const st = STEPS[i];
+      action.innerHTML = st.action;
+      hint.textContent = st.hint;
+      if(st.ring) prog.style.stroke = st.ring; else prog.style.stroke = '';
+      let left = st.s, total = st.s;
+      num.textContent = left;
+      setRing(1);
+      beep(st.beep); vibrate(60);
+      timer = setInterval(()=>{
+        left--;
+        if(left <= 0){
+          clearInterval(timer);
+          setRing(0);
+          runStep(i+1);
+          return;
+        }
+        num.textContent = left;
+        setRing(left/total);
+        beep(st.beep, 0.08);
+        vibrate(40);
+      }, 1000);
+    }
+
+    function finish(){
+      run.querySelector('.ring').classList.add('pulse');
+      stage.parentElement.classList.add('ready');
+      num.textContent = '✓';
+      prog.style.stroke = 'var(--ok)';
+      setRing(1);
+      action.innerHTML = '✅ You are ready!';
+      hint.innerHTML = 'The board is in download mode &mdash; <strong>now you can flash.</strong>';
+      beep(1319, 0.18); setTimeout(()=>beep(1760,0.22), 160); vibrate([80,60,120]);
+      flashBtn.style.display = '';
+      againBtn.style.display = '';
+    }
+
+    function start(){
+      intro.style.display = 'none';
+      run.style.display = '';
+      run.querySelector('.ring').classList.remove('pulse');
+      stage.parentElement.classList.remove('ready');
+      flashBtn.style.display = 'none';
+      againBtn.style.display = 'none';
+      // resume audio on user gesture
+      beep(520, 0.05);
+      runStep(0);
+    }
+
+    startBtn.addEventListener('click', start);
+    againBtn.addEventListener('click', ()=>{ clearInterval(timer); start(); });
+    el('retry').addEventListener('click', (e)=>{ e.preventDefault(); clearInterval(timer); start(); });
+  </script>
+</body>
+</html>
