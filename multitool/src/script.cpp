@@ -2,6 +2,15 @@
 #include "ino_interp.h"
 #include "shared.h"
 #include <LittleFS.h>
+#include <esp_system.h>
+
+// ---------- Absturz-Diagnose (ueberlebt einen Neustart im RTC-RAM) ----------
+#define DIAG_MAGIC 0x5C21B007u
+RTC_NOINIT_ATTR static uint32_t rtcMagic;
+RTC_NOINIT_ATTR static int32_t rtcLine;
+RTC_NOINIT_ATTR static uint32_t rtcStage;  // 1 = Datei lesen, 2 = Parsen, 3 = Ausfuehren
+RTC_NOINIT_ATTR static char rtcFile[48];
+static String bootNote;  // Hinweis nach Absturz, wird in Konsole/Status gezeigt
 
 static SemaphoreHandle_t mtx = nullptr;
 static String logBuf, errBuf, curFile;
@@ -44,6 +53,7 @@ static bool pinErr(long p, bool out, std::string &err) {
 
 class EspHal : public InoHal {
   public:
+    void atLine(int l) override { rtcLine = l; }
     void serialOut(const std::string &s) override { logAppend(String(s.c_str())); }
     void oledOut(const std::string &s) override {
         lock();
@@ -130,6 +140,11 @@ class EspHal : public InoHal {
 
 static void taskFn(void *) {
     String path = curFile;
+    rtcStage = 1;
+    rtcLine = 0;
+    strlcpy(rtcFile, path.c_str(), sizeof(rtcFile));
+    rtcMagic = DIAG_MAGIC;
+    logAppend("[Heap frei: " + String(ESP.getFreeHeap() / 1024) + " kB]\n");
     std::string src;
     File f = LittleFS.open(path, "r");
     bool ok = false;
@@ -150,14 +165,19 @@ static void taskFn(void *) {
     if (!msg.length()) {
         InoInterp *I = new InoInterp();
         EspHal hal;
+        rtcStage = 2;
         if (!I->load(src)) msg = I->errorMsg.c_str();
         else {
+            rtcStage = 3;
             logAppend("> Start " + path + "\n");
             ok = I->run(hal);
             if (!ok) msg = I->errorMsg.c_str();
         }
         delete I;
     }
+    rtcMagic = 0;  // sauber beendet
+    UBaseType_t freeStack = uxTaskGetStackHighWaterMark(nullptr);
+    Serial.printf("[ino] Stack-Reserve: %u Bytes\n", (unsigned)freeStack);
     if (ok) logAppend(stopReq ? "\n[gestoppt]\n" : "\n[beendet]\n");
     else {
         logAppend("\n[FEHLER] " + msg + "\n");
@@ -168,6 +188,42 @@ static void taskFn(void *) {
     running = false;
     vTaskDelete(nullptr);
 }
+
+static const char *resetName(esp_reset_reason_t r) {
+    switch (r) {
+    case ESP_RST_POWERON: return "Einschalten";
+    case ESP_RST_SW: return "Software-Neustart";
+    case ESP_RST_PANIC: return "Absturz (Panic)";
+    case ESP_RST_INT_WDT: return "Interrupt-Watchdog";
+    case ESP_RST_TASK_WDT: return "Task-Watchdog";
+    case ESP_RST_WDT: return "Watchdog";
+    case ESP_RST_BROWNOUT: return "Unterspannung (Brownout)";
+    case ESP_RST_DEEPSLEEP: return "Deep-Sleep";
+    case ESP_RST_EXT: return "Reset-Taste";
+    default: return "unbekannt";
+    }
+}
+
+String resetReasonText() { return resetName(esp_reset_reason()); }
+
+// Beim Booten aufrufen: war vor dem Neustart ein Skript aktiv?
+void scriptBootCheck() {
+    if (rtcMagic == DIAG_MAGIC) {
+        rtcFile[sizeof(rtcFile) - 1] = 0;
+        const char *st = rtcStage == 1 ? "Datei lesen" : (rtcStage == 2 ? "Parsen" : "Ausfuehren");
+        bootNote = String("Letzter Neustart: ") + resetName(esp_reset_reason()) + " waehrend Skript " + rtcFile +
+                   " (" + st + (rtcStage == 3 ? String(", Zeile " + String(rtcLine)) : String("")) + ")";
+        lock();
+        curFile = rtcFile;
+        errBuf = bootNote;
+        logBuf = "[ABSTURZ] " + bootNote + "\n";
+        unlock();
+        Serial.println(bootNote);
+    }
+    rtcMagic = 0;
+}
+
+String scriptBootNote() { return bootNote; }
 
 bool scriptStart(const String &path) {
     if (running) return false;

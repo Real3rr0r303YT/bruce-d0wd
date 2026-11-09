@@ -141,6 +141,8 @@ static void setupRoutes() {
         j += "\"nrf\":" + String(nrfPresent ? "true" : "false") + ",";
         j += "\"oled\":" + String(oledOk ? "true" : "false") + ",";
         j += "\"scr\":\"" + jsonEsc(String(uiTitleBuf)) + "\",";
+        j += "\"rst\":\"" + jsonEsc(resetReasonText()) + "\",";
+        j += "\"crash\":\"" + jsonEsc(scriptBootNote()) + "\",";
         j += "\"fw\":\"" FW_VERSION "\"}";
         r->send(200, "application/json", j);
     });

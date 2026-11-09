@@ -1,3 +1,10 @@
+## ESP Multitool 1.1.1
+
+### Fix / Diagnose
+- Absturz-Diagnose fuer Skripte: nach einem Neustart zeigen Skript-Konsole und Status, welches Skript in welcher Zeile lief und warum der ESP32 neu gestartet ist (Panic, Watchdog, Brownout ...)
+- Interpreter-Interna in eigenem Namespace (keine Namenskollisionen mit Libraries)
+- Status zeigt den Grund des letzten Neustarts
+
 ## ESP Multitool 1.1.0
 
 Firmware für **ESP32-D0WD + SSD1306-OLED (128×64)**.
