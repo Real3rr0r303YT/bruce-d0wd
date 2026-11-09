@@ -59,6 +59,9 @@
     .steps { padding-left: 20px; }
     .steps li { margin: 6px 0; }
     footer { text-align: center; color: var(--muted); font-size: 0.85rem; margin-top: 40px; }
+    a.badge { text-decoration: none; color: var(--accent); }
+    .dl .btn { margin: 4px 6px 4px 0; border-color: var(--border); color: var(--accent); }
+    .dl .btn:first-child { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
     .notice { font-size: 0.86rem; color: var(--muted); border-left: 3px solid var(--border); padding: 4px 0 4px 14px; margin-top: 10px; }
   </style>
 </head>
@@ -73,6 +76,8 @@
         <span class="badge">SSD1306 OLED</span>
         <span class="badge">Wi-Fi &middot; QR onboarding</span>
         <span class="badge">Web remote</span>
+        <span class="badge">.ino scripts</span>
+        <a class="badge" id="ver" href="https://github.com/Real3rr0r303YT/bruce-d0wd/releases/latest" target="_blank" rel="noopener">latest release</a>
       </div>
     </header>
 
@@ -89,6 +94,18 @@
       </esp-web-install-button>
       <p class="hint">If the device is not detected: hold <code>BOOT</code>, tap <code>RST</code>, release <code>BOOT</code>, then click Install.<br />
       Need a hand? Open the <a href="./helper.html">Bootloader Helper</a> &mdash; a guided countdown that gets the board ready.</p>
+      <p class="hint" id="ver-hint">The installer always flashes the latest build from this repository.</p>
+    </section>
+
+    <section class="card">
+      <h2>Downloads</h2>
+      <p>Already running ESP Multitool? Update over Wi-Fi: open the device&rsquo;s web UI &rarr; <strong>Firmware</strong> tab &rarr; upload the OTA file.</p>
+      <p class="dl">
+        <a class="btn" href="./firmware/esp-multitool-app.bin" download>OTA update (app.bin)</a>
+        <a class="btn" href="./firmware/esp-multitool-full.bin" download>Full image (0x0)</a>
+        <a class="btn" href="https://github.com/Real3rr0r303YT/bruce-d0wd/releases/latest" target="_blank" rel="noopener">All releases</a>
+      </p>
+      <p class="notice">Use <code>esp-multitool-app.bin</code> for OTA. The full image is only for USB flashing at offset <code>0x0</code>.</p>
     </section>
 
     <section class="card">
@@ -99,6 +116,7 @@
         <li><strong>IR</strong> &mdash; record and replay remotes, send stored IR codes.</li>
         <li><strong>Bluetooth LE</strong> &mdash; scan nearby BLE devices (name / MAC / RSSI).</li>
         <li><strong>NRF24 scanner</strong> &mdash; 2.4 GHz channel / spectrum monitor and passive sniffer (receive only).</li>
+        <li><strong>Run <code>.ino</code> sketches on the device</strong> &mdash; write or upload a sketch in the web UI (<em>Skript</em> tab) and run it instantly, no compiling or reflashing. A built-in interpreter covers an Arduino C++ subset: <code>setup()</code>/<code>loop()</code>, functions, ints, arrays, <code>#define</code>, <code>if/for/while</code>, <code>pinMode</code>, <code>digitalWrite/Read</code>, <code>analogRead</code>, <code>delay</code>, <code>Serial.print</code>, plus <code>oled.print</code> and <code>irSend("name")</code>.</li>
         <li><strong>Local control</strong> &mdash; three-button OLED menu (Up / Down / Select).</li>
       </ul>
       <p class="notice">Receive / scan / own-device control only &mdash; no jamming, deauth or spam. For education and authorized testing; you are responsible for lawful use.</p>
@@ -125,6 +143,7 @@
         <li>Scan the QR with your phone to join the <code>ESP-MT</code> setup network, then enter your home Wi-Fi.</li>
         <li>The device reboots and shows a QR with its IP &mdash; scan it to open the web remote.</li>
         <li>From then on you can update over the air from the web UI (no cable needed).</li>
+        <li>Open the <strong>Skript</strong> tab, press <em>Beispiel</em> and <em>Speichern &amp; Starten</em> to run your first sketch.</li>
       </ol>
       <p class="notice">First flash must be over USB. If flashing drops out, disconnect the NRF24 module and retry (it can cause power dips).</p>
     </section>
@@ -143,5 +162,12 @@
     </footer>
 
   </div>
+<script>
+fetch('./manifest-multitool.json',{cache:'no-store'}).then(r=>r.json()).then(m=>{
+  const v=document.getElementById('ver');v.textContent='v'+m.version;
+  v.href='https://github.com/Real3rr0r303YT/bruce-d0wd/releases/tag/v'+m.version;
+  document.getElementById('ver-hint').textContent='Installs ESP Multitool v'+m.version+' (latest build from this repository).';
+}).catch(()=>{});
+</script>
 </body>
 </html>

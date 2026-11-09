@@ -1,0 +1,46 @@
+name: Release ESP Multitool
+
+# Legt fuer die Version aus manifest-multitool.json ein GitHub-Release an
+# (Tag v<version>) und haengt die fertigen Binaries aus firmware/ an.
+on:
+  workflow_run:
+    workflows: ["Build ESP Multitool"]
+    types: [completed]
+    branches: [main]
+  push:
+    branches: [main]
+    paths: [".github/workflows/release.yml", ".github/release-notes.md"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main   # enthaelt den frisch eingecheckten Firmware-Commit
+
+      - name: Version lesen
+        id: v
+        run: echo "version=$(jq -r .version manifest-multitool.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Release anlegen (falls neu)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VER: ${{ steps.v.outputs.version }}
+        run: |
+          if gh release view "v$VER" >/dev/null 2>&1; then
+            echo "Release v$VER existiert bereits - aktualisiere Dateien"
+            gh release upload "v$VER" firmware/esp-multitool-full.bin firmware/esp-multitool-app.bin --clobber
+          else
+            gh release create "v$VER" \
+              firmware/esp-multitool-full.bin firmware/esp-multitool-app.bin \
+              --title "ESP Multitool $VER" \
+              --notes-file .github/release-notes.md \
+              --target "$(git rev-parse HEAD)" \
+              --latest
+          fi
