@@ -3,7 +3,7 @@
 #include <U8g2lib.h>
 #include <vector>
 
-#define FW_VERSION "1.0.1"
+#define FW_VERSION "1.1.0"
 
 // ---------- Pins ----------
 #define PIN_SDA 21
@@ -54,6 +54,7 @@ struct ListView {
 void remotePushBtn(Btn b);
 void remoteIrSend(const String &name);
 void remoteNrfScan();
+void remoteRun(const String &path);
 
 // ---------- ir.cpp ----------
 void irBegin();
@@ -104,3 +105,12 @@ String netIP();
 bool netConnected();
 String fmtBytes(size_t b);
 void fsListAll(std::vector<String> &names, std::vector<size_t> &sizes);
+
+// ---------- script.cpp (.ino-Interpreter) ----------
+bool scriptStart(const String &path);
+void scriptStop();
+bool scriptRunning();
+String scriptFile();
+String scriptLog();
+String scriptError();
+std::vector<String> scriptScreen();
