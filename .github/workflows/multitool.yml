@@ -1,0 +1,60 @@
+name: Build ESP Multitool
+
+on:
+  push:
+    branches: [main]
+    paths: ["multitool/**", ".github/workflows/multitool.yml"]
+  pull_request:
+    paths: ["multitool/**", ".github/workflows/multitool.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ runner.os }}-${{ hashFiles('multitool/platformio.ini') }}
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Build
+        run: pio run -d multitool
+
+      - name: Copy binaries
+        run: |
+          cp multitool/esp-multitool-full.bin firmware/esp-multitool-full.bin
+          cp multitool/.pio/build/esp32dev/firmware.bin firmware/esp-multitool-app.bin
+          ls -l firmware/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: esp-multitool-firmware
+          path: |
+            firmware/esp-multitool-full.bin
+            firmware/esp-multitool-app.bin
+
+      # Nach dem Merge: fertige Binaries fuer den Browser-Installer einchecken
+      - name: Commit firmware
+        if: github.event_name != 'pull_request'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add firmware/esp-multitool-full.bin firmware/esp-multitool-app.bin
+          if git diff --cached --quiet; then
+            echo "Firmware unchanged"
+          else
+            git commit -m "firmware: rebuild ESP Multitool [skip ci]"
+            git push
+          fi

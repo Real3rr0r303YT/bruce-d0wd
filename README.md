@@ -72,12 +72,25 @@ If the transfer drops out ("invalid packet"), lower the baud to `115200`.
 
 If this project helps you: **https://buymeacoffee.com/3rr0r303YT**
 
+## Building from source
+
+The ESP Multitool source lives in [`multitool/`](multitool/) (PlatformIO, Arduino core 2.0.17).
+
+```bash
+pip install platformio
+pio run -d multitool
+# -> multitool/esp-multitool-full.bin (0x0) and multitool/.pio/build/esp32dev/firmware.bin (OTA)
+```
+
+GitHub Actions (`.github/workflows/multitool.yml`) builds every pull request and,
+after a merge to `main`, commits fresh binaries to `firmware/` so the browser
+installer always flashes the latest version.
+
 ## Also in this repo
 
 `scaffold.html` + `firmware/bruce-d0wd-merged.bin` are the earlier hardware
-bring-up scaffold (OLED + module detection). The `src/` and `platformio.ini`
-here build that scaffold; the ESP Multitool itself is built from its own
-PlatformIO project.
+bring-up scaffold (OLED + module detection), built from the top-level `src/`
+and `platformio.ini`.
 
 ## License
 

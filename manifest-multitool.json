@@ -1,6 +1,6 @@
 {
   "name": "ESP Multitool",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "funding_url": "https://buymeacoffee.com/3rr0r303YT",
   "new_install_prompt_erase": true,
   "builds": [
