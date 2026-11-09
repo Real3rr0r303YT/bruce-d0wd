@@ -206,6 +206,45 @@ static void setupRoutes() {
         r->send(200, "text/plain", "OK");
     });
 
+    // ---- Skripte (.ino-Interpreter) ----
+    server.on("/api/run", HTTP_POST, [](AsyncWebServerRequest *r) {
+        String f = qp(r, "f");
+        if (!f.startsWith("/")) f = "/" + f;
+        if (!LittleFS.exists(f)) {
+            r->send(404, "text/plain", "Datei nicht gefunden");
+            return;
+        }
+        if (scriptRunning()) {
+            r->send(409, "text/plain", "Es läuft schon ein Skript");
+            return;
+        }
+        remoteRun(f);
+        r->send(200, "text/plain", "OK");
+    });
+    server.on("/api/stop", HTTP_POST, [](AsyncWebServerRequest *r) {
+        scriptStop();
+        r->send(200, "text/plain", "OK");
+    });
+    server.on("/api/script", HTTP_GET, [](AsyncWebServerRequest *r) {
+        String j = "{\"run\":" + String(scriptRunning() ? "true" : "false");
+        j += ",\"file\":\"" + jsonEsc(scriptFile()) + "\"";
+        j += ",\"err\":\"" + jsonEsc(scriptError()) + "\"";
+        String lg = scriptLog();
+        String esc;
+        esc.reserve(lg.length() + 16);
+        for (unsigned i = 0; i < lg.length(); i++) {
+            char c = lg[i];
+            if (c == '"' || c == '\\') {
+                esc += '\\';
+                esc += c;
+            } else if (c == '\n') esc += "\\n";
+            else if ((uint8_t)c < 0x20) esc += ' ';
+            else esc += c;
+        }
+        j += ",\"log\":\"" + esc + "\"}";
+        r->send(200, "application/json", j);
+    });
+
     // ---- Dateien ----
     server.on("/api/files", HTTP_GET, [](AsyncWebServerRequest *r) {
         std::vector<String> n;

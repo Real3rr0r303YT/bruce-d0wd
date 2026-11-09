@@ -27,6 +27,11 @@ offset `0x0`.
 - **Bluetooth LE** — scan nearby devices (name / MAC / RSSI).
 - **NRF24 scanner** — 2.4 GHz channel / spectrum monitor and passive sniffer
   (receive only).
+- **Run `.ino` scripts on the device** — upload or write a sketch in the web UI
+  (tab *Skript*) and run it directly: a built-in interpreter handles a subset of
+  Arduino C++ (`setup()`/`loop()`, functions, ints, arrays, `#define`, `if/for/while`,
+  `pinMode`/`digitalWrite`/`digitalRead`/`analogRead`, `delay`, `Serial.print`,
+  plus `oled.print` and `irSend("name")`). No compiling, no reflashing.
 - **Local control** — three-button OLED menu (Up / Down / Select; Up+Down = back).
 
 ## Hardware pinout

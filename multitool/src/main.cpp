@@ -20,6 +20,8 @@ enum Scr {
     S_NRF_SCAN,
     S_NRF_RX,
     S_FILES,
+    S_SCRIPTS,
+    S_SCRIPT_RUN,
     S_STATUS
 };
 
@@ -37,7 +39,11 @@ static std::vector<Net> nets;
 static std::vector<BleDev> bles;
 static std::vector<String> nrfLog;
 static int nrfCursor = 40;
-static bool qrFull = false;  // Vollbild-QR (Hoch/Runter auf dem Startscreen)
+static bool qrFull = false;
+static std::vector<String> scriptFiles;
+static int scriptSel = 0;
+static char pendRun[64];
+static volatile bool pendRunFlag = false;  // Vollbild-QR (Hoch/Runter auf dem Startscreen)
 static String toast;
 static uint32_t toastUntil = 0, lastInfo = 0;
 
@@ -79,6 +85,31 @@ void remoteIrSend(const String &name) {
 }
 
 void remoteNrfScan() { pendNrf = true; }
+
+void remoteRun(const String &path) {
+    portENTER_CRITICAL(&rmux);
+    strlcpy(pendRun, path.c_str(), sizeof(pendRun));
+    pendRunFlag = true;
+    portEXIT_CRITICAL(&rmux);
+}
+
+static bool isScriptFile(const String &n) {
+    String l = n;
+    l.toLowerCase();
+    return l.endsWith(".ino") || l.endsWith(".txt");
+}
+
+// Text auf Zeilen zu max. w Zeichen umbrechen
+static void wrapInto(std::vector<String> &out, const String &t, int w) {
+    int s = 0, L = t.length();
+    while (s < L) {
+        int nl = t.indexOf('\n', s);
+        int e = nl < 0 ? L : nl;
+        if (e - s > w) e = s + w;
+        out.push_back(t.substring(s, e));
+        s = (nl >= 0 && e == nl) ? e + 1 : e;
+    }
+}
 
 // ---------- Hilfen ----------
 static void showToast(const String &t) {
@@ -184,7 +215,7 @@ static void enter(Scr s) {
         break;
     case S_MAIN:
         setList("Hauptmenü",
-                {"IR Fernbedienung", "WLAN", "Bluetooth (Scan)", "NRF24 2,4 GHz", "Dateien", "Status / Info",
+                {"IR Fernbedienung", "WLAN", "Bluetooth (Scan)", "NRF24 2,4 GHz", "Skripte (.ino)", "Dateien", "Status / Info",
                  "QR / Web-Zugang"},
                 mainSel);
         break;
@@ -273,6 +304,21 @@ static void enter(Scr s) {
     case S_STATUS:
         setInfo("Status", statusLines());
         break;
+    case S_SCRIPTS: {
+        std::vector<String> n;
+        std::vector<size_t> sz;
+        fsListAll(n, sz);
+        scriptFiles.clear();
+        for (auto &f : n)
+            if (isScriptFile(f)) scriptFiles.push_back(f);
+        std::vector<String> it;
+        for (auto &f : scriptFiles) it.push_back(f.substring(1));
+        if (it.empty()) setList("Skripte", {"(keine .ino Datei)", "Im Web-UI unter", "Skript schreiben", "oder hochladen"}, 0, false);
+        else setList("Skripte (" + String(it.size()) + ")", it, scriptSel);
+        break;
+    }
+    case S_SCRIPT_RUN:
+        break;
     }
 }
 
@@ -294,7 +340,7 @@ static void handle(Btn b) {
         else if (b == BTN_BACK) go(S_HOME);
         else if (b == BTN_SEL) {
             mainSel = lv.sel;
-            const Scr t[] = {S_IR, S_WIFI, S_BLE, S_NRF, S_FILES, S_STATUS, S_HOME};
+            const Scr t[] = {S_IR, S_WIFI, S_BLE, S_NRF, S_SCRIPTS, S_FILES, S_STATUS, S_HOME};
             go(t[lv.sel]);
         }
         break;
@@ -393,6 +439,30 @@ static void handle(Btn b) {
     case S_FILES:
         if (lv.nav(b)) break;
         if (b == BTN_BACK) go(S_MAIN);
+        break;
+
+    case S_SCRIPTS:
+        if (lv.nav(b)) {
+            scriptSel = lv.sel;
+            break;
+        }
+        if (b == BTN_BACK) go(S_MAIN);
+        else if (b == BTN_SEL && !scriptFiles.empty()) {
+            scriptSel = lv.sel;
+            if (scriptStart(scriptFiles[lv.sel])) go(S_SCRIPT_RUN);
+            else showToast("Start fehlgeschlagen");
+        }
+        break;
+
+    case S_SCRIPT_RUN:
+        if (b == BTN_BACK) {
+            if (scriptRunning()) {
+                scriptStop();
+                showToast("Stoppe ...");
+            } else go(S_SCRIPTS);
+        } else if (b == BTN_SEL && !scriptRunning()) {
+            if (!scriptStart(scriptFile())) showToast("Start fehlgeschlagen");
+        }
         break;
 
     case S_BLE:
@@ -522,6 +592,37 @@ static void renderNrfRx() {
     for (int i = 0; i < 5 && i < (int)nrfLog.size(); i++) u8g2.drawStr(0, 25 + i * 9, nrfLog[i].c_str());
 }
 
+static void renderScript() {
+    bool run = scriptRunning();
+    String name = scriptFile();
+    int sl = name.lastIndexOf('/');
+    drawHeader(String(run ? "> " : "") + name.substring(sl + 1));
+    std::vector<String> lines;
+    String err = run ? String("") : scriptError();
+    if (err.length()) {
+        lines.push_back("FEHLER:");
+        wrapInto(lines, err, 21);
+    } else {
+        std::vector<String> scrn = scriptScreen();
+        if (!scrn.empty()) lines = scrn;
+        else {
+            // letzte Zeilen der Serial-Ausgabe
+            std::vector<String> all;
+            wrapInto(all, scriptLog(), 21);
+            while (!all.empty() && all.back().length() == 0) all.pop_back();
+            for (size_t i = all.size() > 4 ? all.size() - 4 : 0; i < all.size(); i++) lines.push_back(all[i]);
+        }
+    }
+    u8g2.setFont(u8g2_font_6x10_tf);
+    int maxL = run ? 4 : 3;
+    int start = (int)lines.size() > maxL ? (err.length() ? 0 : lines.size() - maxL) : 0;
+    for (int i = 0; i < maxL && start + i < (int)lines.size(); i++) u8g2.drawUTF8(0, 26 + i * 12, lines[start + i].c_str());
+    if (!run) {
+        u8g2.setFont(u8g2_font_5x7_tf);
+        u8g2.drawStr(0, 63, "OK=neu  Hoch+Runter=zur.");
+    }
+}
+
 static void render() {
     u8g2.clearBuffer();
     switch (scr) {
@@ -552,6 +653,9 @@ static void render() {
         break;
     case S_NRF_RX:
         renderNrfRx();
+        break;
+    case S_SCRIPT_RUN:
+        renderScript();
         break;
     case S_STATUS:
     case S_WIFI_INFO:
@@ -606,6 +710,14 @@ void loop() {
         portEXIT_CRITICAL(&rmux);
         String line = irGetLine(nm);
         showToast(line.length() && irSendLine(line) ? String("Gesendet: " + String(nm)) : String("IR-Fehler"));
+    }
+    if (pendRunFlag) {
+        char pth[64];
+        portENTER_CRITICAL(&rmux);
+        strlcpy(pth, pendRun, sizeof(pth));
+        pendRunFlag = false;
+        portEXIT_CRITICAL(&rmux);
+        if (scriptStart(String(pth))) go(S_SCRIPT_RUN);
     }
     if (pendNrf) {
         pendNrf = false;
