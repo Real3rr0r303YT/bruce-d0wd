@@ -21,16 +21,24 @@ canvas{width:100%;max-width:512px;image-rendering:pixelated;background:#000;bord
 .row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}.row:last-child{border:0}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px}.kv b{color:var(--mut);font-weight:400}
 input[type=text],input[type=password]{width:100%;padding:9px;border-radius:8px;border:1px solid var(--line);background:#0d1117;color:var(--fg);font:inherit;margin:4px 0 12px}
-progress{width:100%;margin-top:10px}small{color:var(--mut)}a{color:var(--acc)}
+progress{width:100%;margin-top:10px}
+select{padding:9px;border-radius:8px;border:1px solid var(--line);background:#0d1117;color:var(--fg);font:inherit;max-width:100%}
+textarea{width:100%;min-height:280px;padding:10px;border-radius:8px;border:1px solid var(--line);background:#0d1117;color:var(--fg);font:13px/1.45 ui-monospace,Menlo,Consolas,monospace;tab-size:2}
+pre#con{background:#000;color:#7ee787;padding:10px;border-radius:8px;min-height:120px;max-height:300px;overflow:auto;white-space:pre-wrap;font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;margin:10px 0 0}small{color:var(--mut)}a{color:var(--acc)}
 </style></head><body>
 <header><h1>ESP Multitool</h1><span id=st>…</span></header>
-<nav id=tabs><button data-t=ctl class=on>Steuerung</button><button data-t=ir>IR</button><button data-t=nrf>NRF24</button><button data-t=fs>Dateien</button><button data-t=ota>Firmware</button><button data-t=net>WLAN</button></nav>
+<nav id=tabs><button data-t=ctl class=on>Steuerung</button><button data-t=scr>Skript</button><button data-t=ir>IR</button><button data-t=nrf>NRF24</button><button data-t=fs>Dateien</button><button data-t=ota>Firmware</button><button data-t=net>WLAN</button></nav>
 <main>
 <section id=ctl class=on><div class=card><canvas id=scr width=128 height=64></canvas>
 <div class=pad><span></span><button class=btn onclick="k('up')">&#9650; Hoch</button><span></span>
 <button class=btn onclick="k('back')">&#8617; Zurück</button><button class="btn p" onclick="k('sel')">OK</button><span></span>
 <span></span><button class=btn onclick="k('down')">&#9660; Runter</button><span></span></div></div>
 <div class=card><div class=kv id=info></div></div></section>
+<section id=scr><div class=card><div class=row style="border:0;padding:0"><select id=sf></select><span><button class="btn p" onclick="runS($('sf').value)">&#9654; Start</button> <button class="btn d" onclick="post('/api/stop')">&#9632; Stop</button></span></div>
+<small id=ss2></small><pre id=con></pre></div>
+<div class=card><label>Dateiname<input type=text id=en value="test.ino"></label><textarea id=ed spellcheck=false placeholder="void setup() { ... }  void loop() { ... }"></textarea>
+<p><button class=btn onclick="edLoad()">Laden</button> <button class=btn onclick="edSave(false)">Speichern</button> <button class="btn p" onclick="edSave(true)">Speichern &amp; Starten</button> <button class=btn onclick="$('ed').value=EX">Beispiel</button></p>
+<small>Läuft direkt auf dem ESP32 (Interpreter, kein Kompilieren). Unterstützt: <code>setup()</code>/<code>loop()</code>, eigene Funktionen, <code>int long byte bool</code>, Arrays, <code>#define</code>, <code>if for while do</code>, <code>pinMode digitalWrite digitalRead analogRead analogWrite delay millis random map</code>, <code>Serial.print/println</code>, <code>oled.print/println/clear</code>, <code>irSend("Name")</code>. Freie Pins: 2, 12, 13, 15, 16, 17, 25, 26, 27 (lesen zusätzlich 14, 32–39). Nicht unterstützt: <code>String</code>, <code>float</code>, <code>switch</code>, Bibliotheken. Stoppen am Gerät: Hoch+Runter.</small></div></section>
 <section id=ir><div class=card><div id=irl></div></div><div class=card><small>Neue Codes am Gerät aufnehmen: Menü → IR → Aufnehmen. Alle Codes stehen in <b>/ir_codes.txt</b> (Zeilenformat <code>Name|Protokoll|Bits|Daten</code>) – herunterladen, bearbeiten, wieder hochladen.</small></div></section>
 <section id=nrf><div class=card><canvas id=spc width=126 height=64></canvas>
 <p><button class="btn p" onclick="post('/api/nrfstart')">Scanner am Gerät starten</button></p><small id=nrfi></small></div></section>
@@ -53,7 +61,7 @@ await new Promise(r=>setTimeout(r,700))}$('nl').innerHTML='<small>Scan fehlgesch
 function save(){if(!$('ss').value)return alert('SSID fehlt');post('/api/wifisave',new URLSearchParams({ssid:$('ss').value,pass:$('pw').value})).then(()=>{$('m').textContent='Gespeichert. Gerät startet neu und verbindet sich mit „'+$('ss').value+'“. Danach den QR-Code auf dem Display scannen.'})}
 
 let tab='ctl';
-document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#tabs button,section').forEach(e=>e.classList.remove('on'));b.classList.add('on');tab=b.dataset.t;$(tab).classList.add('on');if(tab=='ir')irl();if(tab=='fs')fl();if(tab=='net')$('ni').innerHTML=$('info').innerHTML});
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#tabs button,section').forEach(e=>e.classList.remove('on'));b.classList.add('on');tab=b.dataset.t;$(tab).classList.add('on');if(tab=='ir')irl();if(tab=='scr'){sfl();con()}if(tab=='fs')fl();if(tab=='net')$('ni').innerHTML=$('info').innerHTML});
 const k=b=>post('/api/btn?b='+b).then(()=>setTimeout(scr,120));
 const fb=n=>n<1024?n+' B':n<1048576?(n/1024).toFixed(1)+' kB':(n/1048576).toFixed(2)+' MB';
 const ut=s=>(s/3600|0)+'h '+(s/60%60|0)+'m '+s%60+'s';
@@ -68,7 +76,7 @@ function irr(e){const t=prompt('Neuer Name',e.dataset.n);if(t&&t!=e.dataset.n)po
 async function nrf(){const d=await (await fetch('/api/nrf')).json(),c=$('spc').getContext('2d');c.fillStyle='#000';c.fillRect(0,0,126,64);
 let m=0;for(let i=0;i<126;i++){const h=d.lv[i],p=d.pk[i];c.fillStyle='#4fc3f7';c.fillRect(i,64-h,1,h);if(p){c.fillStyle='#ffd400';c.fillRect(i,63-p,1,1)}if(p>d.pk[m])m=i}
 $('nrfi').textContent=d.on?'Scan läuft · stärkster Peak: Kanal '+m+' ('+(2400+m)+' MHz)':'Scanner am Gerät ist nicht aktiv.'}
-async function fl(){fetch('/api/status').then(r=>r.json()).then(S=>{$('uff').textContent='Frei: '+fb(S.fsT-S.fsU)+' von '+fb(S.fsT)}).catch(()=>{});const l=await (await fetch('/api/files')).json();$('fl').innerHTML=l.length?l.map(f=>'<div class=row><a href="/api/dl?f='+q(f.n)+'">'+esc(f.n)+'</a><span><small>'+fb(f.s)+'</small> <button class="btn d" data-n="'+esc(f.n)+'" onclick="fd(this)">&#10005;</button></span></div>').join(''):'<small>Keine Dateien.</small>'}
+async function fl(){fetch('/api/status').then(r=>r.json()).then(S=>{$('uff').textContent='Frei: '+fb(S.fsT-S.fsU)+' von '+fb(S.fsT)}).catch(()=>{});const l=await (await fetch('/api/files')).json();$('fl').innerHTML=l.length?l.map(f=>'<div class=row><a href="/api/dl?f='+q(f.n)+'">'+esc(f.n)+'</a><span><small>'+fb(f.s)+'</small> '+(/\.(ino|txt)$/i.test(f.n)?'<button class="btn p" data-n="'+esc(f.n)+'" onclick="runS(this.dataset.n)">&#9654;</button> ':'')+'<button class="btn d" data-n="'+esc(f.n)+'" onclick="fd(this)">&#10005;</button></span></div>').join(''):'<small>Keine Dateien.</small>'}
 function fd(e){if(confirm('Löschen: '+e.dataset.n+'?'))post('/api/fdel?f='+q(e.dataset.n)).then(fl)}
 function xhr(u,file,bar,done){const f=new FormData();f.append('file',file,file.name);const x=new XMLHttpRequest();x.open('POST',u);bar.hidden=false;bar.value=0;
 x.upload.onprogress=e=>{if(e.lengthComputable)bar.value=e.loaded*100/e.total};x.onload=()=>done(x.status,x.responseText);x.onerror=()=>done(0,'Verbindung abgebrochen');x.send(f)}
@@ -78,8 +86,40 @@ if(i>=fs.length){$('upg').hidden=true;$('uf').value='';fl();return}const f=fs[i+
 function ota(){const f=$('of').files[0];if(!f)return;if(f.size>0x1C0000)return alert('Datei zu groß – bitte firmware.bin nehmen');$('om').textContent='Lade hoch…';
 xhr('/api/ota',f,$('opg'),(s,t)=>{$('om').textContent=t;if(s==200&&t.startsWith('OK'))setTimeout(()=>location.reload(),12000)})}
 function wr(){if(confirm('WLAN-Zugangsdaten löschen?'))post('/api/wifireset').then(()=>alert('Gerät startet als Access Point „ESP-MT“ neu.'))}
+async function sfl(){const l=await (await fetch('/api/files')).json(),c=l.filter(f=>/\.(ino|txt)$/i.test(f.n)),cur=$('sf').value;
+$('sf').innerHTML=c.length?c.map(f=>'<option'+(f.n==cur?' selected':'')+'>'+esc(f.n)+'</option>').join(''):'<option value="">(keine .ino Datei)</option>'}
+function runS(f){if(!f)return;post('/api/run?f='+q(f)).then(r=>r.text()).then(t=>{if(t!='OK')alert(t);else if(tab!='scr')document.querySelector('[data-t=scr]').click()})}
+async function con(){const d=await (await fetch('/api/script')).json(),c=$('con'),bot=c.scrollTop+c.clientHeight>=c.scrollHeight-4;
+$('ss2').textContent=d.run?'▶ läuft: '+d.file:(d.file?'■ beendet: '+d.file:'Noch kein Skript gestartet');c.textContent=d.log||'(keine Ausgabe)';if(bot)c.scrollTop=c.scrollHeight}
+async function edLoad(){const n=$('en').value.trim().replace(/^\//,'');if(!n)return;const r=await fetch('/api/dl?f='+q('/'+n));if(!r.ok)return alert('Datei nicht gefunden');$('ed').value=await r.text()}
+function edSave(run){const n=$('en').value.trim().replace(/^\//,'');if(!n)return alert('Dateiname fehlt');const f=new FormData();f.append('file',new Blob([$('ed').value],{type:'text/plain'}),n);
+fetch('/api/upload',{method:'POST',body:f}).then(r=>r.text()).then(t=>{if(!t.startsWith('OK'))return alert(t);sfl();if(run)post('/api/stop').then(()=>setTimeout(()=>runS('/'+n),500))})}
+const EX=`// Beispiel: LED an GPIO 2 blinkt, Zaehler auf dem OLED
+#define LED 2
+int runde = 0;
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(LED, OUTPUT);
+  Serial.println("Hallo vom ESP32!");
+}
+
+void loop() {
+  digitalWrite(LED, HIGH);
+  delay(500);
+  digitalWrite(LED, LOW);
+  delay(500);
+  runde++;
+  oled.clear();
+  oled.println("Blink-Test");
+  oled.print("Runde: ");
+  oled.println(runde);
+  Serial.print("Runde ");
+  Serial.println(runde);
+}
+`;
 stat();scr();setInterval(stat,2000);
-setInterval(()=>{if(document.hidden)return;if(tab=='ctl')scr().catch(()=>{});if(tab=='nrf')nrf().catch(()=>{})},400);
+setInterval(()=>{if(document.hidden)return;if(tab=='ctl')scr().catch(()=>{});if(tab=='nrf')nrf().catch(()=>{});if(tab=='scr')con().catch(()=>{})},400);
 </script></body></html>)HTML";
 
 static const char PORTAL_HTML[] PROGMEM = R"HTML(<!doctype html><html lang=de><head><meta charset=utf-8>
