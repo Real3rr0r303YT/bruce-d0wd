@@ -7,6 +7,8 @@
 
 using namespace ino;
 
+namespace ino {
+
 // =====================================================================
 // Lexer
 // =====================================================================
@@ -196,7 +198,6 @@ enum NK {
     N_BLOCK, N_EXPR, N_DECL, N_DECLLIST, N_IF, N_WHILE, N_DO, N_FOR, N_RET, N_BREAK, N_CONT, N_EMPTY
 };
 
-namespace ino {
 struct Node {
     NK k;
     int line = 0;
@@ -205,7 +206,6 @@ struct Node {
     std::vector<NodeP> c;
     bool flag = false;  // DECL: hat Init-Liste {...}
 };
-}  // namespace ino
 
 static NodeP mk(NK k, int line) {
     auto n = std::make_shared<Node>();
@@ -669,6 +669,8 @@ struct Parser {
     }
 };
 
+}  // namespace ino
+
 bool InoInterp::load(const std::string &src) {
     funcs.clear();
     globalInits.clear();
@@ -695,6 +697,7 @@ bool InoInterp::load(const std::string &src) {
 // =====================================================================
 // Ausfuehrung
 // =====================================================================
+namespace ino {
 enum Flow { F_NORMAL, F_BREAK, F_CONT, F_RET, F_STOP };
 
 struct InoExec {
@@ -1045,6 +1048,7 @@ struct InoExec {
 
     Flow exec(const NodeP &n) {
         if (!tick()) return F_STOP;
+        h.atLine(n->line);
         switch (n->k) {
         case N_EMPTY: return F_NORMAL;
         case N_EXPR: {
@@ -1132,6 +1136,8 @@ struct InoExec {
         return call(n, dummy);
     }
 };
+
+}  // namespace ino
 
 bool InoInterp::run(InoHal &h) {
     hal = &h;

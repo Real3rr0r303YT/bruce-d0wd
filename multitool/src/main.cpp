@@ -172,6 +172,7 @@ static std::vector<String> statusLines() {
     v.push_back("IR: TX 12 / RX 13");
     v.push_back("Uptime: " + uptimeStr());
     v.push_back("Firmware: v" FW_VERSION);
+    v.push_back("Neustart: " + resetReasonText());
     return v;
 }
 
@@ -690,10 +691,12 @@ void setup() {
     uiBegin();
     showMessage("ESP Multitool", "v" FW_VERSION, "Starte ...");
     if (!LittleFS.begin(true)) Serial.println("LittleFS Fehler");
+    scriptBootCheck();
     irBegin();
     nrfDetect();
     netBegin();
     go(S_HOME);
+    if (scriptBootNote().length()) showToast("Skript-Absturz! Web>Skript");
 }
 
 void loop() {

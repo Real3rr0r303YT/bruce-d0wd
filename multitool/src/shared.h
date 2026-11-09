@@ -3,7 +3,7 @@
 #include <U8g2lib.h>
 #include <vector>
 
-#define FW_VERSION "1.1.0"
+#define FW_VERSION "1.1.1"
 
 // ---------- Pins ----------
 #define PIN_SDA 21
@@ -114,3 +114,6 @@ String scriptFile();
 String scriptLog();
 String scriptError();
 std::vector<String> scriptScreen();
+void scriptBootCheck();
+String scriptBootNote();
+String resetReasonText();

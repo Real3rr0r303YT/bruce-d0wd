@@ -29,6 +29,7 @@ class InoHal {
     virtual long random(long lo, long hi) = 0;
     virtual bool stopRequested() = 0;
     virtual void yield() = 0;
+    virtual void atLine(int) {}  // aktuelle Quelltextzeile (Diagnose)
 };
 
 namespace ino {
@@ -39,6 +40,7 @@ struct Func {
     NodeP body;
     bool returnsValue = false;
 };
+struct InoExec;
 struct Var {
     std::vector<long> data;
     bool isArray = false;
@@ -66,5 +68,5 @@ class InoInterp {
     unsigned long steps = 0;
     bool failed = false;
 
-    friend struct InoExec;
+    friend struct ino::InoExec;
 };
